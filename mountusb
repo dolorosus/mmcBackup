@@ -1,0 +1,54 @@
+#!/bin/bash
+# set -x
+#
+export ofuuid=4E01B2F961B8EF1E
+export blkid='/sbin/blkid'
+
+
+chkroot() {
+	[ $(/usr/bin/id -u) != "0" ] && {
+		echo -e "you have to be root to run this script\n"
+		return 1
+	}
+
+	return 0
+}
+
+mountusb()
+{
+	[ -z "${1}" ] && { echo "usage mountusb mountpoint" ; return 1 ; } 
+
+	chkroot && {
+
+	local ofmount=${1}
+	local ofdev=$(${blkid}|grep $ofuuid|cut -d : -f 1)
+	[[ -z ${ofdev} ]] && { echo "can't find uuid ${ofuuid}";  return 10 ; }
+	[[ ${ofdev}=\/dev\/sd* ]] || return 11
+	rmdir ${ofmount} >/dev/null 2>&1
+	mkdir ${ofmount} || return 12
+
+	umount ${ofdev} >/dev/null 2>&1
+	mount UUID=${ofuuid} ${ofmount} || return 13
+	echo "Stick mounted on ${ofmount}"
+	df -h | grep ${ofmount}
+	return 0
+	}
+}
+
+umountusb()
+{
+	[ "${1}" =  "" ] && { echo "usage umountusb mountpoint" ; return 21; } 
+
+	chkroot && {
+
+	local ofmount="${1}"
+	local ofdev=$(${blkid}|grep $ofuuid|cut -d : -f 1)
+	[[ -z ${ofdev} ]] && { echo "can't find uuid ${ofuuid}";  return 22; }
+	[[ ${ofdev}=\/dev\/sd* ]] || { echo "ofdev_:${ofdev} doesn't contain /dev/sd"; return 23; }
+	umount "${ofdev}" && { echo "umount of ${ofdev} succsessful"; return 0; }
+	umount "${ofmount}" >/dev/null 2>&1 && echo "umount of ${ofmount} succsessful" || return 24
+	return 0
+	}
+}
+echo "function mountusb mountpoint 	created"
+echo "function umountusb mountpoint 	created"
